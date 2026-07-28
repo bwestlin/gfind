@@ -1,7 +1,20 @@
-# gfind
+<!-- Allow this file to not have a first line heading -->
+<!-- markdownlint-disable-file MD041 no-emphasis-as-heading -->
 
-Find repositories, branches, commits, statuses, and stashes across collections
-of Git repositories.
+<!-- inline html -->
+<!-- markdownlint-disable-file MD033 -->
+
+<div align="center">
+
+# `gfind`
+
+**Find repositories, branches, commits, statuses, and stashes across collections
+of Git repositories.**
+
+[![Crates.io](https://img.shields.io/crates/v/gfind.svg)](https://crates.io/crates/gfind)
+[![dependency status](https://deps.rs/repo/github/bwestlin/gfind/status.svg)](https://deps.rs/repo/github/bwestlin/gfind)
+[![Build status](https://github.com/bwestlin/gfind/workflows/CI/badge.svg)](https://github.com/bwestlin/gfind/actions)
+</div>
 
 `gfind` recursively discovers repositories below one or more search roots and
 runs the same query across all of them. Output is concise, colorized in a
