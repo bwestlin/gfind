@@ -8,7 +8,8 @@
 
 # `gfind`
 
-**Find repositories, branches, commits, statuses, and stashes across collections of Git repositories.**
+**Find repositories, branches, commits, statuses, and stashes across collections
+of Git repositories.**
 
 [![Crates.io](https://img.shields.io/crates/v/gfind.svg)](https://crates.io/crates/gfind)
 [![dependency status](https://deps.rs/repo/github/bwestlin/gfind/status.svg)](https://deps.rs/repo/github/bwestlin/gfind)
