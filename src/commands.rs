@@ -40,8 +40,8 @@ struct DirectoryExclusions {
 }
 
 impl DirectoryExclusions {
-    fn new(patterns: Vec<String>) -> Result<Self> {
-        let regexes = RegexSet::new(&patterns)
+    fn new(patterns: &[String]) -> Result<Self> {
+        let regexes = RegexSet::new(patterns)
             .map_err(|err| format!("invalid directory exclusion regex: {err}"))?;
 
         Ok(Self { regexes })
@@ -196,7 +196,8 @@ pub(crate) fn run(cli: Cli) -> Result<()> {
     let config = load_config(&cli.config, logger)?;
     let display = DisplayOptions::new(&cli, &config)?;
     let roots = search_roots(&cli, &config, logger)?;
-    let exclusions = DirectoryExclusions::new(exclude_dir_patterns(&cli, &config))?;
+    let exclusion_patterns = exclude_dir_patterns(&cli, &config);
+    let exclusions = DirectoryExclusions::new(&exclusion_patterns)?;
     logger.log(format!("using {} directory exclusion(s)", exclusions.len()));
     let repos = discover_repos(&roots, &exclusions, logger)?;
 
@@ -343,6 +344,7 @@ fn query_mode(options: &QueryOptions, configured: QueryMode) -> QueryMode {
     }
 }
 
+#[allow(clippy::fn_params_excessive_bools)]
 fn branch_search_mode(
     current: bool,
     local: bool,
@@ -384,7 +386,7 @@ fn discover_repos(
         logger.log(format!("scanning {}", root.display()));
 
         if let Some(repo) = repo_toplevel(root, logger)? {
-            push_repo(&mut repos, &mut seen, repo, logger)?;
+            push_repo(&mut repos, &mut seen, &repo, logger)?;
         }
 
         let mut stack = vec![root.clone()];
@@ -428,7 +430,7 @@ fn discover_repos(
                 if entry_path.join(".git").exists()
                     && let Some(repo) = repo_toplevel(&entry_path, logger)?
                 {
-                    push_repo(&mut repos, &mut seen, repo, logger)?;
+                    push_repo(&mut repos, &mut seen, &repo, logger)?;
                 }
 
                 stack.push(entry_path);
@@ -443,10 +445,10 @@ fn discover_repos(
 fn push_repo(
     repos: &mut Vec<PathBuf>,
     seen: &mut HashSet<PathBuf>,
-    repo: PathBuf,
+    repo: &Path,
     logger: Logger,
 ) -> Result<()> {
-    let canonical = fs::canonicalize(&repo)
+    let canonical = fs::canonicalize(repo)
         .map_err(|err| format!("failed to access repo {}: {err}", repo.display()))?;
 
     if seen.insert(canonical.clone()) {
@@ -594,7 +596,7 @@ fn print_branch_matches(
 ) -> Result<()> {
     for repo in repos {
         logger.log(format!("checking branch in {}", repo.display()));
-        let matches = matching_branches(
+        let branch_matches = matching_branches(
             repo,
             matcher,
             options.search,
@@ -604,41 +606,44 @@ fn print_branch_matches(
             logger,
         )?;
 
-        if !matches.has_matches(options.search) {
+        if !branch_matches.has_matches(options.search) {
             continue;
         }
 
         println!("{}", display.style.repo(display.repo(repo)));
 
         match options.search {
-            BranchSearch::Current => print_current_branch(&matches, matcher, &display.style),
+            BranchSearch::Current => {
+                print_current_branch(&branch_matches, matcher, &display.style);
+            }
             BranchSearch::Local => {
-                for branch in &matches.local {
-                    let current = matches.current_name.as_deref() == Some(branch.name.as_str());
+                for branch in &branch_matches.local {
+                    let current =
+                        branch_matches.current_name.as_deref() == Some(branch.name.as_str());
                     print_branch_ref("local", branch, current, matcher, &display.style);
                 }
             }
             BranchSearch::Remote => {
-                for branch in matches.remote {
+                for branch in branch_matches.remote {
                     print_branch_ref("remote", &branch, false, matcher, &display.style);
                 }
             }
             BranchSearch::All => {
-                if matches.current
-                    && !matches
-                        .local
-                        .iter()
-                        .any(|branch| matches.current_name.as_deref() == Some(branch.name.as_str()))
+                if branch_matches.current
+                    && !branch_matches.local.iter().any(|branch| {
+                        branch_matches.current_name.as_deref() == Some(branch.name.as_str())
+                    })
                 {
-                    print_current_branch(&matches, matcher, &display.style);
+                    print_current_branch(&branch_matches, matcher, &display.style);
                 }
 
-                for branch in &matches.local {
-                    let current = matches.current_name.as_deref() == Some(branch.name.as_str());
+                for branch in &branch_matches.local {
+                    let current =
+                        branch_matches.current_name.as_deref() == Some(branch.name.as_str());
                     print_branch_ref("local", branch, current, matcher, &display.style);
                 }
 
-                for branch in matches.remote {
+                for branch in branch_matches.remote {
                     print_branch_ref("remote", &branch, false, matcher, &display.style);
                 }
             }
@@ -648,8 +653,12 @@ fn print_branch_matches(
     Ok(())
 }
 
-fn print_current_branch(matches: &BranchMatches, matcher: &QueryMatcher, style: &OutputStyle) {
-    if let Some(branch) = matches.current_name.as_deref() {
+fn print_current_branch(
+    branch_matches: &BranchMatches,
+    matcher: &QueryMatcher,
+    style: &OutputStyle,
+) {
+    if let Some(branch) = branch_matches.current_name.as_deref() {
         println!(
             "  {}: {}",
             style.label("current"),
@@ -657,7 +666,7 @@ fn print_current_branch(matches: &BranchMatches, matcher: &QueryMatcher, style: 
         );
     }
 
-    if let Some(commit_hash) = &matches.current_hash {
+    if let Some(commit_hash) = &branch_matches.current_hash {
         println!(
             "    {}: {}",
             style.label("commit"),
@@ -665,7 +674,7 @@ fn print_current_branch(matches: &BranchMatches, matcher: &QueryMatcher, style: 
         );
     }
 
-    if let Some(upstream_status) = &matches.current_upstream_status {
+    if let Some(upstream_status) = &branch_matches.current_upstream_status {
         println!(
             "    {}: {}",
             style.label("status"),
@@ -718,7 +727,7 @@ fn format_branch_upstream_status(status: &BranchUpstreamStatus) -> String {
         } => format!(
             "{} {}",
             format_branch_freshness(freshness),
-            format_upstream(remote, remote_hash)
+            format_upstream(remote, remote_hash.as_deref())
         ),
         BranchUpstreamStatus::Tracking {
             upstream,
@@ -727,7 +736,7 @@ fn format_branch_upstream_status(status: &BranchUpstreamStatus) -> String {
             behind: 0,
         } => format!(
             "up-to-date with {}",
-            format_upstream(upstream, upstream_hash)
+            format_upstream(upstream, upstream_hash.as_deref())
         ),
         BranchUpstreamStatus::Tracking {
             upstream,
@@ -736,7 +745,7 @@ fn format_branch_upstream_status(status: &BranchUpstreamStatus) -> String {
             behind: 0,
         } => format!(
             "ahead {ahead} of {}",
-            format_upstream(upstream, upstream_hash)
+            format_upstream(upstream, upstream_hash.as_deref())
         ),
         BranchUpstreamStatus::Tracking {
             upstream,
@@ -745,7 +754,7 @@ fn format_branch_upstream_status(status: &BranchUpstreamStatus) -> String {
             behind,
         } => format!(
             "behind {behind} from {}",
-            format_upstream(upstream, upstream_hash)
+            format_upstream(upstream, upstream_hash.as_deref())
         ),
         BranchUpstreamStatus::Tracking {
             upstream,
@@ -754,7 +763,7 @@ fn format_branch_upstream_status(status: &BranchUpstreamStatus) -> String {
             behind,
         } => format!(
             "ahead {ahead}, behind {behind} vs {}",
-            format_upstream(upstream, upstream_hash)
+            format_upstream(upstream, upstream_hash.as_deref())
         ),
     }
 }
@@ -771,8 +780,8 @@ fn format_branch_freshness(freshness: &BranchFreshness) -> String {
     }
 }
 
-fn format_upstream(upstream: &str, upstream_hash: &Option<String>) -> String {
-    upstream_hash.as_ref().map_or_else(
+fn format_upstream(upstream: &str, upstream_hash: Option<&str>) -> String {
+    upstream_hash.map_or_else(
         || upstream.to_string(),
         |hash| format!("{upstream} @ {hash}"),
     )
@@ -1248,7 +1257,7 @@ fn print_stash_matches(
                 },
             );
 
-            println!("  {}: {}", reference, subject);
+            println!("  {reference}: {subject}");
 
             if print {
                 let mode = if patch { "--patch" } else { "--stat" };
@@ -1678,18 +1687,16 @@ mod tests {
     #[test]
     fn matched_text_reports_query_ranges() {
         let matcher = QueryMatcher::new("gfind", QueryMode::Contains).unwrap();
-        let matched = matched_text("git@github.com:bwestlin/gfind.git", &matcher).unwrap();
+        let match_result = matched_text("git@github.com:bwestlin/gfind.git", &matcher).unwrap();
 
-        assert_eq!(matched.ranges, vec![(24, 29)]);
+        assert_eq!(match_result.ranges, vec![(24, 29)]);
     }
 
     #[test]
     fn directory_exclusions_match_names_and_relative_paths() {
-        let exclusions = DirectoryExclusions::new(vec![
-            "^target$".to_string(),
-            "^vendor/generated$".to_string(),
-        ])
-        .unwrap();
+        let exclusions =
+            DirectoryExclusions::new(&["^target$".to_string(), "^vendor/generated$".to_string()])
+                .unwrap();
         let root = Path::new("/work");
 
         assert!(exclusions.matches(root, Path::new("/work/project/target")));

@@ -20,6 +20,7 @@ use crate::query::QueryMode;
 
 #[derive(Debug, Parser)]
 #[command(version, about = "Find things across Git repos")]
+#[allow(clippy::struct_excessive_bools)]
 pub(crate) struct Cli {
     /// Print diagnostic progress to stderr.
     #[arg(short, long, global = true)]
@@ -278,10 +279,7 @@ fn config_path_from_args(args: &[OsString]) -> PathBuf {
 
     while let Some(arg) = args.next() {
         if arg == "--config" {
-            return args
-                .next()
-                .map(PathBuf::from)
-                .unwrap_or_else(default_config_path);
+            return args.next().map_or_else(default_config_path, PathBuf::from);
         }
 
         if let Some(arg) = arg.to_str()
@@ -528,6 +526,7 @@ fn effective_config_footer(config: &ConfigFile, scope: HelpScope) -> Option<Stri
 }
 
 #[derive(Clone, Debug, Default, clap::Args)]
+#[allow(clippy::struct_excessive_bools)]
 pub(crate) struct QueryOptions {
     /// Query mode: contains, matches, exact, fuzzy, or regex.
     #[arg(long, value_enum, conflicts_with_all = ["contains", "exact", "fuzzy", "regex"])]

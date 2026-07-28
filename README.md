@@ -8,6 +8,19 @@ Find things across Git repos
 cargo install --path .
 ```
 
+## Development
+
+Run the same checks used by CI:
+
+```sh
+just fmt-check
+just check
+just lint
+just test
+```
+
+Run `just` without a recipe to list all available commands.
+
 ## Search roots
 
 By default, `gfind` searches under the current working directory.

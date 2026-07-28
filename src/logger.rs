@@ -8,7 +8,7 @@ impl Logger {
         Self { verbose }
     }
 
-    pub(crate) fn log(&self, message: impl AsRef<str>) {
+    pub(crate) fn log(self, message: impl AsRef<str>) {
         if self.verbose {
             eprintln!("{}", message.as_ref());
         }

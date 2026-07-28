@@ -79,7 +79,7 @@ pub(crate) struct ConfigFile {
     /// Whether branch freshness should prefer the live origin remote. Defaults to false.
     pub(crate) branch_origin_status: Option<bool>,
 
-    /// Deprecated compatibility setting. Use branch_hash instead.
+    /// Deprecated compatibility setting. Use `branch_hash` instead.
     pub(crate) branch_hashes: Option<bool>,
 
     /// Default repo query mode: contains, matches, exact, fuzzy, or regex.
