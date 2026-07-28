@@ -214,6 +214,9 @@ just lint
 just test
 ```
 
+Releases use `cargo-release` and `git-cliff`. See
+[RELEASING.md](RELEASING.md) for the complete local release procedure.
+
 ## License
 
 `gfind` is available under the [MIT License](LICENSE).

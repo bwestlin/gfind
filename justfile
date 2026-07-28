@@ -22,3 +22,23 @@ lint:
 # Run Rust tests with all features.
 test:
     cargo test --locked --all-features
+
+# Preview changes since the latest release tag.
+changelog-preview:
+    git-cliff --unreleased
+
+# Validate unreleased commits and changelog generation.
+changelog-check:
+    git-cliff --unreleased > /dev/null
+
+# Preview a cargo-release run without changing the repository.
+release-dry-run level:
+    cargo release {{level}}
+
+# Bump, publish, commit, tag, and push a release.
+release level:
+    cargo release {{level}} --execute
+
+# Update the changelog from cargo-release without mutating it during dry runs.
+_changelog-release version:
+    @if [ "$DRY_RUN" = "true" ]; then git-cliff --unreleased --tag "v{{version}}"; else git-cliff --unreleased --tag "v{{version}}" --prepend CHANGELOG.md; fi
