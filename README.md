@@ -1,72 +1,162 @@
 # gfind
 
-Find things across Git repos
+Find repositories, branches, commits, statuses, and stashes across collections
+of Git repositories.
 
-## Install locally
+`gfind` recursively discovers repositories below one or more search roots and
+runs the same query across all of them. Output is concise, colorized in a
+terminal, and uses paths relative to the current directory by default.
+
+## Installation
+
+Install the latest release from crates.io:
+
+```sh
+cargo install gfind
+```
+
+Or install the current source checkout:
 
 ```sh
 cargo install --path .
 ```
 
-## Development
-
-Run the same checks used by CI:
+## Quick start
 
 ```sh
-just fmt-check
-just check
-just lint
-just test
+# List every repository below the current directory.
+gfind repos
+
+# Search repository paths and remote URLs.
+gfind repos api
+
+# Find local branches across repositories.
+gfind branch main
+
+# Find dirty worktrees or branches ahead of their upstream.
+gfind status
+
+# Search stashes by reference or subject.
+gfind stash login
 ```
 
-Run `just` without a recipe to list all available commands.
+Pass one or more explicit search roots with `--path`:
+
+```sh
+gfind --path ~/src --path ~/work branch feature/login
+```
+
+## Commands
+
+| Command | Alias | Description |
+| --- | --- | --- |
+| `repos [QUERY]` | `r` | List repositories or match their paths and remotes |
+| `branch QUERY` | `b` | Find local, remote, or current branches |
+| `commit REV` | `c` | Find repositories containing a commit |
+| `status` | `s` | Find dirty worktrees or unpushed commits |
+| `stash [QUERY]` | `sh` | List, search, or print stashes |
+| `config init` | `cfg` | Create a documented configuration file |
+| `completions SHELL` | `comp` | Generate shell completions |
+
+Run `gfind <command> --help` for all command-specific options.
+
+### Repository queries
+
+Repository queries match both paths and remote URLs:
+
+```sh
+gfind repos gfind
+gfind repos '^git_.*/gfind$' --regex
+```
+
+When only a remote URL matches, `gfind` prints that remote below the repository.
+
+### Branch queries
+
+Branches are searched locally by default:
+
+```sh
+gfind branch main
+gfind branch feature/search --remote
+gfind branch feature/search --all
+gfind branch main --current
+```
+
+Local branch results include their commit and upstream freshness by default:
+
+```text
+project
+  local: main
+    commit: 2a46717f4c4ad7509291df3f9ec704f07671fa5c
+    status: up-to-date with origin/main @ 2a46717f4c4ad7509291df3f9ec704f07671fa5c
+    current: yes
+```
+
+Use `--short-commit-hash` or `--no-commit-hash` to change hash output. Use
+`--no-upstream-status` to omit freshness. `--origin-status` checks the live
+`origin` branch first and falls back to the local upstream tracking ref.
+
+### Commit, status, and stash queries
+
+```sh
+# Find a commit object, optionally requiring reachability from HEAD.
+gfind commit abc1234
+gfind commit abc1234 --reachable
+
+# Limit status results.
+gfind status --dirty-only
+gfind status --unpushed-only
+
+# Search or inspect stashes.
+gfind stash
+gfind stash login
+gfind stash --stash 0 --print
+gfind stash login --patch
+```
+
+## Matching
+
+Repository, branch, and stash queries support five matching modes:
+
+| Mode | Flag | Behavior |
+| --- | --- | --- |
+| Contains | `--contains` | Case-insensitive substring matching (default) |
+| Matches | `--query-mode matches` | Alias for contains |
+| Exact | `--exact` | Case-insensitive full-string matching |
+| Fuzzy | `--fuzzy` | Ordered character matching |
+| Regex | `--regex` | Regular-expression matching |
 
 ## Search roots
 
-By default, `gfind` searches under the current working directory.
-
-Repo paths are printed relative to the current working directory by default. Use
-`--absolute` to print absolute paths, or configure `absolute_paths = true`.
-
-You can pass one or more roots explicitly:
+The current working directory is searched by default. Configure persistent
+roots or repeat `--path` on the command line:
 
 ```sh
 gfind --path ~/src --path ~/work repos
 ```
 
-Directories named `target` are excluded from traversal by default. Supply one
-or more replacement regexes with `--exclude-dir`, or disable exclusions for one
-command with `--no-exclude-dirs`:
+Repository paths are relative to the current directory unless `--absolute` is
+set. Directories named `target` are excluded by default. Replace that exclusion
+with one or more regular expressions, or disable it for one command:
 
 ```sh
 gfind --exclude-dir '^node_modules$' --exclude-dir '^vendor/generated$' repos
 gfind --no-exclude-dirs repos
 ```
 
-Use `--verbose` to print config, traversal, and git probe diagnostics to stderr:
+Use `--verbose` to print traversal and Git diagnostics to standard error.
+Set `NO_COLOR=1` to disable ANSI color.
 
-```sh
-gfind --verbose --path ~/src status
-```
+## Configuration
 
-When stdout is a supported terminal, `gfind` colorizes output and shows matched
-text on a dark gray background. Set `NO_COLOR=1` to disable ANSI color.
-
-You can also configure default roots in `~/.gfind/config.toml`:
+Create `~/.gfind/config.toml` with documented defaults:
 
 ```sh
 gfind config init
 ```
 
-The config file is optional; when it is absent, `gfind` uses built-in defaults.
-
-This writes a documented config file with commented examples. Existing files
-are not overwritten unless `--force` is passed:
-
-```sh
-gfind config init --force
-gfind --config ./gfind.toml config init
-```
+Existing files are preserved unless `--force` is passed. Use `--config` to
+select another location.
 
 ```toml
 paths = ["~/src", "~/work"]
@@ -82,23 +172,12 @@ branch_upstream_status = true
 branch_origin_status = false
 ```
 
-`include_cwd` defaults to `true`. Use `--cwd` to include cwd even when
-`include_cwd = false`, or `--no-cwd` to suppress cwd for one command.
-`exclude_dirs` defaults to `["^target$"]`. Regexes match directory names and
-paths relative to each search root. CLI exclusions replace configured values.
-`branch_search` can be `current`, `local`, `remote`, or `all`.
-`repo_query`, `branch_query`, and `stash_query` can be `contains`, `matches`,
-`exact`, `fuzzy`, or `regex`; they default to `contains`.
-`branch_hash` can be `full`, `short`, or `none`; it defaults to `full`.
-`branch_upstream_status` defaults to `true`.
-`branch_origin_status` defaults to `false`; when enabled, branch freshness first
-checks the live `origin` remote branch and falls back to local upstream tracking
-if the origin check is unavailable.
+Command-line options override configuration. Query modes may be `contains`,
+`matches`, `exact`, `fuzzy`, or `regex`; branch search may be `current`, `local`,
+`remote`, or `all`; and branch hashes may be `full`, `short`, or `none`.
 
-Help output prints effective built-in or configured defaults beside the options
-through Clap. When the selected config file differs from the built-in defaults,
-applicable changes are also listed as equivalent flags under
-`Config overrides (equivalent CLI flags):` at the end:
+Help output displays effective defaults and any configuration overrides as
+equivalent command-line flags:
 
 ```sh
 gfind --help
@@ -106,185 +185,9 @@ gfind branch --help
 gfind --config ./gfind.toml branch --help
 ```
 
-## Commands
-
-Top-level commands have visible aliases:
-
-```text
-repos: r
-branch: b
-commit: c
-status: s
-stash: sh
-config: cfg
-completions: comp
-```
-
-List all discovered repos:
-
-```sh
-gfind repos
-```
-
-Find repos by path or remote URL:
-
-```sh
-gfind repos gfind
-gfind repos '^git_.*/gfind$' --regex
-```
-
-If a repo query matches only a remote URL, the matching remote line is printed
-under the repo.
-
-Find repos that have a local branch matching a query:
-
-```sh
-gfind branch main
-gfind branch bwe/main-api --exact
-gfind branch 'bwe/.+-ci' --regex
-gfind branch mai --fuzzy
-```
-
-Matched branches are printed under each repo. If the matched branch is currently
-checked out, that branch entry includes `current: yes`. Branch results include
-full commit hashes and local upstream tracking freshness by default:
-
-```text
-project
-  local: main
-    commit: 2a46717f4c4ad7509291df3f9ec704f07671fa5c
-    status: up-to-date with origin/main @ 2a46717f4c4ad7509291df3f9ec704f07671fa5c
-    current: yes
-```
-
-The hash after `@` is the local upstream tracking ref hash by default. If
-`--origin-status` or `branch_origin_status = true` is enabled, it is the live
-remote `origin/<branch>` hash when that check succeeds.
-
-Use short branch commit hashes:
-
-```sh
-gfind branch main --short-commit-hash
-```
-
-Suppress branch commit hashes:
-
-```sh
-gfind branch main --no-commit-hash
-```
-
-Force branch commit hashes when config disables them:
-
-```sh
-gfind branch main --commit-hash
-```
-
-`--commit-hash` is equivalent to `--full-commit-hash`.
-
-Suppress branch upstream freshness:
-
-```sh
-gfind branch main --no-upstream-status
-```
-
-Force branch upstream freshness when config disables it:
-
-```sh
-gfind branch main --upstream-status
-```
-
-`--remote-status` and `--no-remote-status` are aliases for these upstream
-status flags.
-
-Use only local upstream tracking freshness when config enables live origin
-checks:
-
-```sh
-gfind branch main --no-origin-status
-```
-
-Check the live `origin` branch before falling back to local upstream tracking:
-
-```sh
-gfind branch main --origin-status
-```
-
-`--remote-origin-status` and `--no-remote-origin-status` are aliases for these
-origin status flags.
-
-Only find repos where a branch is currently checked out:
-
-```sh
-gfind branch main --current
-```
-
-Find repos that have a remote branch:
-
-```sh
-gfind branch feature/search --remote
-```
-
-Find repos that have a local or remote branch, with matching refs shown:
-
-```sh
-gfind branch feature/search --all
-```
-
-Find repos that contain a commit object locally:
-
-```sh
-gfind commit abc1234
-```
-
-Commit matches print the queried revision under each matching repo.
-
-Only match repos where the commit is reachable from `HEAD`:
-
-```sh
-gfind commit abc1234 --reachable
-```
-
-List repos with a dirty worktree or commits ahead of upstream:
-
-```sh
-gfind status
-```
-
-Limit status checks:
-
-```sh
-gfind status --dirty-only
-gfind status --unpushed-only
-```
-
-List stashes:
-
-```sh
-gfind stash
-```
-
-Search stashes by ref or subject:
-
-```sh
-gfind stash login
-gfind stash 'WIP.*auth' --regex
-```
-
-Print a specific stash across repos:
-
-```sh
-gfind stash --stash 0 --print
-```
-
-Print patches for matching stashes:
-
-```sh
-gfind stash login --patch
-```
-
 ## Shell completions
 
-Generate a completion script for Bash, Elvish, Fish, PowerShell, or Zsh:
+Generate completions for Bash, Elvish, Fish, PowerShell, or Zsh:
 
 ```sh
 gfind completions bash
@@ -292,9 +195,25 @@ gfind completions fish
 gfind completions zsh
 ```
 
-Source or install the generated script according to your shell's conventions.
-For example, load Bash completions for the current session:
+Install the generated script according to your shell's conventions. For
+example, load Bash completions for the current session with:
 
 ```sh
 source <(gfind completions bash)
 ```
+
+## Development
+
+The repository uses [just](https://github.com/casey/just) as its task runner.
+Run `just` to list available recipes, or run the same checks as CI:
+
+```sh
+just fmt-check
+just check
+just lint
+just test
+```
+
+## License
+
+`gfind` is available under the [MIT License](LICENSE).
