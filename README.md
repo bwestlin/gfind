@@ -205,17 +205,15 @@ source <(gfind completions bash)
 ## Development
 
 The repository uses [just](https://github.com/casey/just) as its task runner.
-Run `just` to list available recipes, or run the same checks as CI:
+Run `just` to list available recipes, or run all local checks with:
 
 ```sh
-just fmt-check
-just check
-just lint
-just test
+just check-all
 ```
 
 Releases use `cargo-release` and `git-cliff`. See
 [RELEASING.md](RELEASING.md) for the complete local release procedure.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for pull request and commit conventions.
 
 ## License
 

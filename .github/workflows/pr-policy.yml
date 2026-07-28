@@ -1,0 +1,45 @@
+name: PR policy
+
+on:
+  pull_request:
+    branches: ["main"]
+    types: [edited, opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Conventional PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Validate Conventional Commit title
+        uses: ytanikin/pr-conventional-commits@1.5.2
+        with:
+          task_types: '["feat","fix","docs","test","ci","refactor","perf","chore","revert"]'
+          add_label: "false"
+
+      - name: Check PR description
+        shell: bash
+        run: |
+          word_count=$(python -c '
+          import json
+          import os
+
+          with open(os.environ["GITHUB_EVENT_PATH"], encoding="utf-8") as file:
+              event = json.load(file)
+
+          print(len((event["pull_request"]["body"] or "").split()))
+          ')
+
+          if (( word_count < 2 )); then
+            echo "::error::PR description must contain at least two words."
+            exit 1
+          fi

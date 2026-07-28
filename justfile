@@ -23,6 +23,10 @@ lint:
 test:
     cargo test --locked --all-features
 
+# Lint all Markdown files.
+markdown-check:
+    npx markdownlint-cli2 '**/*.md' '#target/**'
+
 # Preview changes since the latest release tag.
 changelog-preview:
     git-cliff --unreleased
@@ -30,6 +34,9 @@ changelog-preview:
 # Validate unreleased commits and changelog generation.
 changelog-check:
     git-cliff --unreleased > /dev/null
+
+# Run all local checks.
+check-all: fmt-check check lint test markdown-check changelog-check
 
 # Preview a cargo-release run without changing the repository.
 release-dry-run level:
