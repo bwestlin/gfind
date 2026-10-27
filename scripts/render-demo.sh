@@ -78,19 +78,23 @@ render_repos_frame() {
 render_branch_frame() {
   terminal_frame branch \
     -pointsize 20 -fill "#e6edf3" \
-    -annotate +34+76 '$ gfind branch feature/login --all --short-commit-hash' \
-    -fill "#56d4dd" -annotate +34+126 'clients/storefront' \
+    -annotate +34+76 '$ gfind -p ~/src -p ~/work branch login --all --short-commit-hash' \
+    -fill "#56d4dd" -annotate +34+126 'src/clients/storefront' \
     -pointsize 18 -fill "#7d8590" -annotate +54+164 'local:' \
-    -fill "#56d4dd" -annotate +134+164 'feature/login' \
+    -fill "#56d4dd" -annotate +134+164 'feature/' \
+    -undercolor "#30363d" -annotate +221+164 'login' \
+    -undercolor none \
     -fill "#7d8590" -annotate +74+198 'commit:' \
     -fill "#e5c07b" -annotate +164+198 '9f31c7a' \
     -fill "#7d8590" -annotate +74+232 'status:' \
     -fill "#e5c07b" -annotate +164+232 'ahead 2 of origin/feature/login @ 8c4ad21' \
     -fill "#7d8590" -annotate +74+266 'current:' \
     -fill "#98c379" -annotate +174+266 'yes' \
-    -pointsize 20 -fill "#56d4dd" -annotate +34+320 'platform/api' \
+    -pointsize 20 -fill "#56d4dd" -annotate +34+320 'work/platform/api' \
     -pointsize 18 -fill "#7d8590" -annotate +54+358 'remote:' \
-    -fill "#56d4dd" -annotate +144+358 'origin/feature/login' \
+    -fill "#56d4dd" -annotate +144+358 'origin/feature/' \
+    -undercolor "#30363d" -annotate +307+358 'login' \
+    -undercolor none \
     -fill "#7d8590" -annotate +74+392 'commit:' \
     -fill "#e5c07b" -annotate +164+392 '2dc38b4' \
     -fill "#e6edf3" -draw "rectangle 34,425 46,428"
@@ -118,13 +122,19 @@ render_status_frame() {
 
 render_stash_frame() {
   terminal_frame stash \
-    -pointsize 20 -fill "#e6edf3" -annotate +34+76 '$ gfind stash login' \
-    -fill "#56d4dd" -annotate +34+130 'clients/storefront' \
+    -pointsize 20 -fill "#e6edf3" -annotate +34+76 '$ gfind -p ~/src -p ~/work stash login' \
+    -fill "#56d4dd" -annotate +34+130 'src/clients/storefront' \
     -pointsize 18 -fill "#c678dd" -annotate +54+168 'stash@{0}:' \
-    -fill "#e6edf3" -annotate +183+168 'On feature/login: WIP login redirect' \
-    -pointsize 20 -fill "#56d4dd" -annotate +34+222 'platform/api' \
+    -fill "#e6edf3" -annotate +183+168 'On feature/' \
+    -undercolor "#30363d" -annotate +302+168 'login' \
+    -undercolor none -annotate +356+168 ': WIP ' \
+    -undercolor "#30363d" -annotate +421+168 'login' \
+    -undercolor none -annotate +486+168 'redirect' \
+    -pointsize 20 -fill "#56d4dd" -annotate +34+222 'work/platform/api' \
     -pointsize 18 -fill "#c678dd" -annotate +54+260 'stash@{1}:' \
-    -fill "#e6edf3" -annotate +183+260 'On main: save auth middleware experiment' \
+    -fill "#e6edf3" -annotate +183+260 'On main: ' \
+    -undercolor "#30363d" -annotate +280+260 'login' \
+    -undercolor none -annotate +345+260 'rate-limit experiment' \
     -fill "#e6edf3" -draw "rectangle 34,293 46,296"
 }
 
