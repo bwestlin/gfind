@@ -404,7 +404,10 @@ mod tests {
         assert_eq!(exclude_dir_patterns(&cli, &config), ["^build$"]);
 
         let disabled = Cli::try_parse_from(["gfind", "--no-exclude-dirs", "repos"]).unwrap();
-        assert!(exclude_dir_patterns(&disabled, &config).is_empty());
+        assert_eq!(
+            exclude_dir_patterns(&disabled, &config),
+            Vec::<String>::new()
+        );
     }
 
     #[test]
