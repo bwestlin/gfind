@@ -42,6 +42,8 @@ commit_parsers = [
     { message = "^refactor", group = "Changed" },
     { message = "^docs?", group = "Documentation" },
     { message = "^revert", group = "Reverted" },
+    # v0.1.3 contains this CI compatibility fix and no user-facing commits.
+    { sha = "99aaee88b0f37a02573fd4992cf2eb963a67bb4d", group = "Fixed" },
     { message = "^(build|ci|chore|style|test)", skip = true },
 
     # These commits predate the Conventional Commits policy. Pin their handling

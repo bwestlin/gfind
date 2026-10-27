@@ -27,4 +27,7 @@ jobs:
       - name: Lint Markdown
         uses: DavidAnson/markdownlint-cli2-action@v19
         with:
-          globs: "**/*.md"
+          # markdownlint-cli2 uses a leading # for exclusion globs.
+          globs: |
+            **/*.md
+            #CHANGELOG.md
