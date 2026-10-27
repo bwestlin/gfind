@@ -14,6 +14,10 @@ of Git repositories.**
 [![Crates.io](https://img.shields.io/crates/v/gfind.svg)](https://crates.io/crates/gfind)
 [![dependency status](https://deps.rs/repo/github/bwestlin/gfind/status.svg)](https://deps.rs/repo/github/bwestlin/gfind)
 [![Build status](https://github.com/bwestlin/gfind/workflows/CI/badge.svg)](https://github.com/bwestlin/gfind/actions)
+
+![Animated terminal demo of gfind](https://raw.githubusercontent.com/bwestlin/gfind/main/assets/gfind-demo.gif)
+
+<sub>Mocked example output. No real repositories, branches, or stashes are shown.</sub>
 </div>
 
 `gfind` recursively discovers repositories below one or more search roots and
@@ -223,6 +227,14 @@ Run `just` to list available recipes, or run all local checks with:
 ```sh
 just check-all
 ```
+
+Regenerate the mocked terminal demo after changing console output:
+
+```sh
+scripts/render-demo.sh
+```
+
+The script requires ImageMagick and does not inspect any real repositories.
 
 Releases use `cargo-release` and `git-cliff`. See
 [RELEASING.md](RELEASING.md) for the complete local release procedure.
