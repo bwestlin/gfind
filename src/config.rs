@@ -64,6 +64,9 @@ pub(crate) struct ConfigFile {
     /// Whether repo paths should be printed as absolute paths. Defaults to false.
     pub(crate) absolute_paths: Option<bool>,
 
+    /// Whether matching repos should be grouped into a tree. Defaults to false.
+    pub(crate) tree: Option<bool>,
+
     /// Directory regexes excluded from repo traversal. Defaults to ^target$.
     pub(crate) exclude_dirs: Option<Vec<String>>,
 
@@ -93,6 +96,10 @@ pub(crate) struct ConfigFile {
 }
 
 impl ConfigFile {
+    pub(crate) fn effective_tree(&self) -> bool {
+        self.tree.unwrap_or(false)
+    }
+
     pub(crate) fn effective_include_cwd(&self) -> bool {
         self.include_cwd.unwrap_or(true)
     }
@@ -189,6 +196,10 @@ include_cwd = true
 # Print absolute repo paths instead of paths relative to cwd.
 # CLI overrides: --absolute, --relative
 absolute_paths = false
+
+# Group matching repos into a directory tree.
+# CLI overrides: --tree, --no-tree
+tree = false
 
 # Directory regexes excluded from repository traversal.
 # Regexes match both the directory name and its path relative to the search root.

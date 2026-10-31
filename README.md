@@ -44,6 +44,9 @@ cargo install --path .
 # List every repository below the current directory.
 gfind repos
 
+# Show matching repositories in a directory tree.
+gfind --tree repos
+
 # Search repository paths and remote URLs.
 gfind repos api
 
@@ -164,6 +167,44 @@ gfind --no-exclude-dirs repos
 Use `--verbose` to print traversal and Git diagnostics to standard error.
 Set `NO_COLOR=1` to disable ANSI color.
 
+## Tree output
+
+Use `--tree` with any search command to group matching repositories by directory:
+
+```sh
+gfind --tree repos
+gfind --path ~/src --tree branch main --short-commit-hash
+gfind status --tree
+gfind commit HEAD --tree
+gfind stash login --patch --tree
+```
+
+For example, `gfind --tree repos` could print:
+
+```text
+. — 3 repos
+├── apps — 1 repo
+│   └── cli
+└── work — 2 repos
+    ├── api
+    └── web
+```
+
+Intermediate directories show the number of matching repositories in their
+subtree. Only matching repositories and their ancestors appear; overlapping
+search roots do not duplicate repositories. Nested repositories retain their
+own results. Branches, commits, status reasons, remote matches, and stash
+contents keep their usual details beneath or beside each repository.
+
+Trees use paths relative to the current directory by default, with `.` as the
+root and `..` for results outside it. `--absolute` starts the hierarchy at the
+filesystem root. Directory siblings are sorted by name. Color and query
+highlighting follow the usual terminal settings; pipes receive plain text.
+Tree results are buffered until the search completes.
+
+Flat output remains the default. Set `tree = true` in the configuration to
+prefer trees, and use `--no-tree` to request flat output for one command.
+
 ## Configuration
 
 Create `~/.gfind/config.toml` with documented defaults:
@@ -179,6 +220,7 @@ select another location.
 paths = ["~/src", "~/work"]
 include_cwd = false
 absolute_paths = false
+tree = false
 exclude_dirs = ["^target$"]
 branch_search = "local"
 repo_query = "contains"

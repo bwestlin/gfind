@@ -6,6 +6,7 @@ mod git;
 mod logger;
 mod query;
 mod style;
+mod tree;
 
 use crate::cli::Cli;
 

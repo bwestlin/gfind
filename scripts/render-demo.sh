@@ -120,6 +120,37 @@ render_status_frame() {
     -fill "#e6edf3" -draw "rectangle 34,243 46,246"
 }
 
+render_tree_frame() {
+  terminal_frame tree \
+    -pointsize 20 -fill "#e6edf3" \
+    -annotate +34+76 '$ gfind --tree branch login --all --short-commit-hash' \
+    -pointsize 18 -fill "#7d8590" \
+    -annotate +34+126 '. — 2 repos' \
+    -annotate +34+160 '├── clients — 1 repo' \
+    -annotate +34+194 '│   └── ' \
+    -fill "#56d4dd" -annotate +121+194 'storefront' \
+    -fill "#7d8590" -annotate +34+228 '│         local: ' \
+    -fill "#56d4dd" -annotate +219+228 'feature/' \
+    -undercolor "#30363d" -annotate +306+228 'login' \
+    -undercolor none \
+    -fill "#7d8590" -annotate +34+262 '│           commit: ' \
+    -fill "#e5c07b" -annotate +252+262 '9f31c7a' \
+    -fill "#7d8590" -annotate +34+296 '│           status: ' \
+    -fill "#e5c07b" -annotate +252+296 'ahead 2 of origin/feature/login @ 8c4ad21' \
+    -fill "#7d8590" -annotate +34+330 '│           current: ' \
+    -fill "#98c379" -annotate +263+330 'yes' \
+    -fill "#7d8590" -annotate +34+364 '└── platform — 1 repo' \
+    -annotate +78+398 '└── ' \
+    -fill "#56d4dd" -annotate +121+398 'api' \
+    -fill "#7d8590" -annotate +143+432 'remote:' \
+    -fill "#56d4dd" -annotate +230+432 'origin/feature/' \
+    -undercolor "#30363d" -annotate +393+432 'login' \
+    -undercolor none \
+    -fill "#7d8590" -annotate +165+466 'commit:' \
+    -fill "#e5c07b" -annotate +252+466 '2dc38b4' \
+    -fill "#e6edf3" -draw "rectangle 34,499 46,502"
+}
+
 render_stash_frame() {
   terminal_frame stash \
     -pointsize 20 -fill "#e6edf3" -annotate +34+76 '$ gfind -p ~/src -p ~/work stash login' \
@@ -159,6 +190,7 @@ render_repos_frame 2 true
 render_repos_frame 3 true
 render_repos_frame 3 false
 render_branch_frame
+render_tree_frame
 render_status_frame
 render_stash_frame
 render_remote_frame
@@ -171,6 +203,7 @@ magick \
   -delay 40 "$demo_tmp/repos-3-false.png" \
   -delay 40 "$demo_tmp/repos-3-true.png" \
   -delay 260 "$demo_tmp/branch.png" \
+  -delay 340 "$demo_tmp/tree.png" \
   -delay 220 "$demo_tmp/status.png" \
   -delay 220 "$demo_tmp/stash.png" \
   -delay 240 "$demo_tmp/remote.png" \

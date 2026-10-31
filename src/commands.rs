@@ -26,9 +26,9 @@ use crate::logger::Logger;
 use crate::query::QueryMatcher;
 use crate::query::QueryMode;
 use crate::style::OutputStyle;
+use crate::tree::RepoOutput;
 
 struct RepoMatch {
-    display_path: String,
     display_ranges: Vec<(usize, usize)>,
     absolute_path: Option<MatchedText>,
     remotes: Vec<MatchedText>,
@@ -144,6 +144,7 @@ struct StashEntry {
 }
 
 struct DisplayOptions {
+    tree: bool,
     absolute_paths: bool,
     cwd: PathBuf,
     style: OutputStyle,
@@ -166,6 +167,7 @@ impl DisplayOptions {
             })?;
 
         Ok(Self {
+            tree: cli.tree || (!cli.no_tree && config.effective_tree()),
             absolute_paths,
             cwd,
             style: OutputStyle::auto(),
@@ -173,10 +175,14 @@ impl DisplayOptions {
     }
 
     fn repo(&self, repo: &Path) -> String {
+        self.path(repo).display().to_string()
+    }
+
+    fn path(&self, repo: &Path) -> PathBuf {
         if self.absolute_paths {
-            repo.display().to_string()
+            repo.to_path_buf()
         } else {
-            relative_path(&self.cwd, repo).display().to_string()
+            relative_path(&self.cwd, repo)
         }
     }
 }
@@ -490,6 +496,7 @@ fn print_repos(
     display: &DisplayOptions,
     logger: Logger,
 ) -> Result<()> {
+    let mut output = RepoOutput::new(display.tree);
     for repo in repos {
         logger.log(format!("checking repo {}", repo.display()));
 
@@ -497,33 +504,33 @@ fn print_repos(
             continue;
         };
 
-        println!(
-            "{}",
-            display
-                .style
-                .highlight_repo(&repo_match.display_path, &repo_match.display_ranges)
+        output.repo(
+            display.path(repo),
+            &repo_match.display_ranges,
+            "",
+            &display.style,
         );
 
         if let Some(absolute_path) = repo_match.absolute_path {
-            println!(
+            output.line(format_args!(
                 "  {}: {}",
                 display.style.label("absolute"),
                 display
                     .style
                     .highlight_repo(&absolute_path.text, &absolute_path.ranges)
-            );
+            ));
         }
 
         for remote in repo_match.remotes {
-            println!(
+            output.line(format_args!(
                 "  {}: {}",
                 display.style.label("remote"),
                 display.style.highlight_plain(&remote.text, &remote.ranges)
-            );
+            ));
         }
     }
 
-    Ok(())
+    output.finish(&display.style)
 }
 
 fn repo_match(
@@ -535,7 +542,6 @@ fn repo_match(
     let display_path = display.repo(repo);
     let Some(matcher) = matcher else {
         return Ok(Some(RepoMatch {
-            display_path,
             display_ranges: Vec::new(),
             absolute_path: None,
             remotes: Vec::new(),
@@ -555,7 +561,6 @@ fn repo_match(
 
     if path_matches || !remotes.is_empty() {
         return Ok(Some(RepoMatch {
-            display_path,
             display_ranges,
             absolute_path,
             remotes,
@@ -594,6 +599,7 @@ fn print_branch_matches(
     display: &DisplayOptions,
     logger: Logger,
 ) -> Result<()> {
+    let mut output = RepoOutput::new(display.tree);
     for repo in repos {
         logger.log(format!("checking branch in {}", repo.display()));
         let branch_matches = matching_branches(
@@ -610,22 +616,36 @@ fn print_branch_matches(
             continue;
         }
 
-        println!("{}", display.style.repo(display.repo(repo)));
+        output.repo(display.path(repo), &[], "", &display.style);
 
         match options.search {
             BranchSearch::Current => {
-                print_current_branch(&branch_matches, matcher, &display.style);
+                print_current_branch(&branch_matches, matcher, &display.style, &mut output);
             }
             BranchSearch::Local => {
                 for branch in &branch_matches.local {
                     let current =
                         branch_matches.current_name.as_deref() == Some(branch.name.as_str());
-                    print_branch_ref("local", branch, current, matcher, &display.style);
+                    print_branch_ref(
+                        "local",
+                        branch,
+                        current,
+                        matcher,
+                        &display.style,
+                        &mut output,
+                    );
                 }
             }
             BranchSearch::Remote => {
                 for branch in branch_matches.remote {
-                    print_branch_ref("remote", &branch, false, matcher, &display.style);
+                    print_branch_ref(
+                        "remote",
+                        &branch,
+                        false,
+                        matcher,
+                        &display.style,
+                        &mut output,
+                    );
                 }
             }
             BranchSearch::All => {
@@ -634,52 +654,67 @@ fn print_branch_matches(
                         branch_matches.current_name.as_deref() == Some(branch.name.as_str())
                     })
                 {
-                    print_current_branch(&branch_matches, matcher, &display.style);
+                    print_current_branch(&branch_matches, matcher, &display.style, &mut output);
                 }
 
                 for branch in &branch_matches.local {
                     let current =
                         branch_matches.current_name.as_deref() == Some(branch.name.as_str());
-                    print_branch_ref("local", branch, current, matcher, &display.style);
+                    print_branch_ref(
+                        "local",
+                        branch,
+                        current,
+                        matcher,
+                        &display.style,
+                        &mut output,
+                    );
                 }
 
                 for branch in branch_matches.remote {
-                    print_branch_ref("remote", &branch, false, matcher, &display.style);
+                    print_branch_ref(
+                        "remote",
+                        &branch,
+                        false,
+                        matcher,
+                        &display.style,
+                        &mut output,
+                    );
                 }
             }
         }
     }
 
-    Ok(())
+    output.finish(&display.style)
 }
 
 fn print_current_branch(
     branch_matches: &BranchMatches,
     matcher: &QueryMatcher,
     style: &OutputStyle,
+    output: &mut RepoOutput,
 ) {
     if let Some(branch) = branch_matches.current_name.as_deref() {
-        println!(
+        output.line(format_args!(
             "  {}: {}",
             style.label("current"),
             matcher.highlight_branch_name(branch, style)
-        );
+        ));
     }
 
     if let Some(commit_hash) = &branch_matches.current_hash {
-        println!(
+        output.line(format_args!(
             "    {}: {}",
             style.label("commit"),
             style.commit(commit_hash)
-        );
+        ));
     }
 
     if let Some(upstream_status) = &branch_matches.current_upstream_status {
-        println!(
+        output.line(format_args!(
             "    {}: {}",
             style.label("status"),
             style.status(format_branch_upstream_status(upstream_status))
-        );
+        ));
     }
 }
 
@@ -689,31 +724,36 @@ fn print_branch_ref(
     current: bool,
     matcher: &QueryMatcher,
     style: &OutputStyle,
+    output: &mut RepoOutput,
 ) {
-    println!(
+    output.line(format_args!(
         "  {}: {}",
         style.label(kind),
         matcher.highlight_branch_name(&branch.name, style)
-    );
+    ));
 
     if let Some(commit_hash) = &branch.commit_hash {
-        println!(
+        output.line(format_args!(
             "    {}: {}",
             style.label("commit"),
             style.commit(commit_hash)
-        );
+        ));
     }
 
     if let Some(upstream_status) = &branch.upstream_status {
-        println!(
+        output.line(format_args!(
             "    {}: {}",
             style.label("status"),
             style.status(format_branch_upstream_status(upstream_status))
-        );
+        ));
     }
 
     if current {
-        println!("    {}: {}", style.label("current"), style.current("yes"));
+        output.line(format_args!(
+            "    {}: {}",
+            style.label("current"),
+            style.current("yes")
+        ));
     }
 }
 
@@ -1121,6 +1161,7 @@ fn print_commit_matches(
     display: &DisplayOptions,
     logger: Logger,
 ) -> Result<()> {
+    let mut output = RepoOutput::new(display.tree);
     for repo in repos {
         logger.log(format!("checking commit in {}", repo.display()));
 
@@ -1132,16 +1173,16 @@ fn print_commit_matches(
         };
 
         if matches {
-            println!("{}", display.style.repo(display.repo(repo)));
-            println!(
+            output.repo(display.path(repo), &[], "", &display.style);
+            output.line(format_args!(
                 "  {}: {}",
                 display.style.label("commit"),
                 display.style.highlight_commit(rev, &[(0, rev.len())])
-            );
+            ));
         }
     }
 
-    Ok(())
+    output.finish(&display.style)
 }
 
 fn print_status_matches(
@@ -1151,6 +1192,7 @@ fn print_status_matches(
     display: &DisplayOptions,
     logger: Logger,
 ) -> Result<()> {
+    let mut output = RepoOutput::new(display.tree);
     for repo in repos {
         logger.log(format!("checking status in {}", repo.display()));
 
@@ -1175,11 +1217,16 @@ fn print_status_matches(
                 .map(|reason| display.style.reason(reason))
                 .collect::<Vec<_>>()
                 .join(", ");
-            println!("{} ({})", display.style.repo(display.repo(repo)), reasons);
+            output.repo(
+                display.path(repo),
+                &[],
+                &format!(" ({reasons})"),
+                &display.style,
+            );
         }
     }
 
-    Ok(())
+    output.finish(&display.style)
 }
 
 fn repo_status(repo: &Path, logger: Logger) -> Result<RepoStatus> {
@@ -1227,6 +1274,7 @@ fn print_stash_matches(
     display: &DisplayOptions,
     logger: Logger,
 ) -> Result<()> {
+    let mut output = RepoOutput::new(display.tree);
     for repo in repos {
         logger.log(format!("checking stashes in {}", repo.display()));
 
@@ -1236,7 +1284,7 @@ fn print_stash_matches(
             continue;
         }
 
-        println!("{}", display.style.repo(display.repo(repo)));
+        output.repo(display.path(repo), &[], "", &display.style);
 
         for entry in entries {
             let reference = matcher.map_or_else(
@@ -1257,23 +1305,23 @@ fn print_stash_matches(
                 },
             );
 
-            println!("  {reference}: {subject}");
+            output.line(format_args!("  {reference}: {subject}"));
 
             if print {
                 let mode = if patch { "--patch" } else { "--stat" };
 
-                if let Some(output) =
+                if let Some(contents) =
                     git_stdout(repo, &["stash", "show", mode, &entry.reference], logger)?
                 {
-                    for line in output.lines() {
-                        println!("    {line}");
+                    for line in contents.lines() {
+                        output.line(format_args!("    {line}"));
                     }
                 }
             }
         }
     }
 
-    Ok(())
+    output.finish(&display.style)
 }
 
 fn matching_stashes(
@@ -1357,6 +1405,26 @@ fn relative_path(base: &Path, path: &Path) -> PathBuf {
 mod tests {
     use super::*;
     use crate::config::documented_config;
+
+    #[test]
+    fn tree_layout_respects_cli_and_config_precedence() {
+        use clap::Parser;
+
+        for configured in [false, true] {
+            let config = ConfigFile {
+                tree: Some(configured),
+                ..ConfigFile::default()
+            };
+            for (args, expected) in [
+                (vec!["gfind", "repos"], configured),
+                (vec!["gfind", "--tree", "repos"], true),
+                (vec!["gfind", "repos", "--no-tree"], false),
+            ] {
+                let cli = Cli::try_parse_from(args).unwrap();
+                assert_eq!(DisplayOptions::new(&cli, &config).unwrap().tree, expected);
+            }
+        }
+    }
 
     #[test]
     fn normalizes_numeric_stash_refs() {
@@ -1723,6 +1791,7 @@ mod tests {
         assert_eq!(config.paths, Some(Vec::new()));
         assert_eq!(config.include_cwd, Some(true));
         assert_eq!(config.absolute_paths, Some(false));
+        assert_eq!(config.tree, Some(false));
         assert_eq!(config.exclude_dirs, Some(vec!["^target$".to_string()]));
         assert_eq!(config.branch_search, Some(BranchSearch::Local));
         assert_eq!(config.repo_query, Some(QueryMode::Contains));
@@ -1736,6 +1805,7 @@ mod tests {
             "paths",
             "include_cwd",
             "absolute_paths",
+            "tree",
             "exclude_dirs",
             "branch_search",
             "repo_query",

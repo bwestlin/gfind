@@ -39,6 +39,14 @@ pub(crate) struct Cli {
     #[arg(long, alias = "relative-paths", global = true)]
     pub(crate) relative: bool,
 
+    /// Group matching repos into a directory tree.
+    #[arg(long, global = true, conflicts_with = "no_tree")]
+    pub(crate) tree: bool,
+
+    /// Print flat output, overriding the configured tree layout.
+    #[arg(long, global = true)]
+    pub(crate) no_tree: bool,
+
     /// Path to a TOML config file.
     #[arg(long, global = true, default_value = "~/.gfind/config.toml")]
     pub(crate) config: PathBuf,
@@ -404,6 +412,7 @@ fn command_with_help_defaults(config: Option<&ConfigFile>, scope: HelpScope) -> 
 fn apply_traversal_defaults(mut command: Command, config: &ConfigFile) -> Command {
     command = set_flag_default(command, "cwd", config.effective_include_cwd());
     command = set_flag_default(command, "absolute", config.effective_absolute_paths());
+    command = set_flag_default(command, "tree", config.effective_tree());
 
     if let Some(paths) = config.paths.as_ref().filter(|paths| !paths.is_empty()) {
         let paths = paths
@@ -457,6 +466,9 @@ fn effective_config_footer(config: &ConfigFile, scope: HelpScope) -> Option<Stri
         }
         if config.effective_absolute_paths() {
             overrides.push("--absolute".to_string());
+        }
+        if config.effective_tree() {
+            overrides.push("--tree".to_string());
         }
         if config.effective_exclude_dirs() != [DEFAULT_EXCLUDE_DIR] {
             let exclusions = config.effective_exclude_dirs();
@@ -555,6 +567,42 @@ mod tests {
     use crate::config::BranchHash;
     use crate::config::BranchSearch;
     use crate::config::documented_config;
+
+    #[test]
+    fn tree_flags_are_global_and_mutually_exclusive() {
+        for command in [
+            vec!["repos"],
+            vec!["branch", "main"],
+            vec!["commit", "HEAD"],
+            vec!["status"],
+            vec!["stash"],
+        ] {
+            let mut args = vec!["gfind"];
+            args.extend(command);
+            assert!(!Cli::try_parse_from(&args).unwrap().tree);
+            args.push("--tree");
+            assert!(Cli::try_parse_from(&args).unwrap().tree);
+            args.push("--no-tree");
+            assert!(Cli::try_parse_from(&args).is_err());
+        }
+        assert!(
+            Cli::try_parse_from(["gfind", "--tree", "repos"])
+                .unwrap()
+                .tree
+        );
+    }
+
+    #[test]
+    fn help_shows_configured_tree_default_and_override() {
+        let config: ConfigFile = toml::from_str("tree = true").unwrap();
+        let help = command_with_help_defaults(Some(&config), HelpScope::Repos)
+            .try_get_matches_from(["gfind", "repos", "--help"])
+            .unwrap_err()
+            .to_string();
+        assert!(help.contains("Group matching repos into a directory tree [default: true]"));
+        assert!(help.contains("--no-tree"));
+        assert!(help.contains("Config overrides (equivalent CLI flags):\n  --tree"));
+    }
 
     #[test]
     fn parses_completion_shell() {
